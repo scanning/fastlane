@@ -99,7 +99,7 @@ module Match
 
       def prefixed_working_directory
         # We fall back to "*", which means certificates and profiles
-        # from all teams that use this bucket would be installed. This is not ideal, but
+        # from all teams that use this vault would be installed. This is not ideal, but
         # unless the user provides a `team_id`, we can't know which one to use
         # This only happens if `readonly` is activated, and no `team_id` was provided
         @_folder_prefix ||= currently_used_team_id
@@ -119,47 +119,69 @@ module Match
         # No existing working directory, creating a new one now
         self.working_directory = Dir.mktmpdir
 
-        unless self.team_id || self.type
-          begin
-            # List the secrets using the HashiCorp Vault client
-            secrets = []
+        begin
 
-            ['certs', 'profiles'].each do |t|
-              path = 'match/' + self.team_id + '/' + t + '/' + self.type
-              result = self.vault_client.logical.list(path)
-              result.each { |r| secrets.push(path + '/' + r) }
-            end
-
-            # Get the secrets and write them out
-            secrets.each do |secret|
-              UI.verbose("Downloading secret from HashiCorp Vault '#{secret}'")
-              result = self.vault_client.logical.read(secret)
-              split = secret.split('/')
-              filename = split[split.length - 1]
-              path = self.working_directory + '/' + secret.gsub('/' + filename, '').gsub('match/', '')
-              dirname = File.dirname(path)
-              unless File.directory?(dirname)
-                FileUtils.mkdir_p(dirname)
-              end
-              File.write(dirname + '/' + filename, Base64.decode64(result.data[:data][:contents]))
-            end
-          rescue => ex
-            UI.error(ex)
-            UI.user_error!("Unable to get secrets from vault and write to file.")
+          # Discover the team ids using the HashiCorp Vault client
+          team_ids = []
+          if self.team_id.nil? || self.team_id.empty?
+            tids = self.vault_client.logical.list('match')
+            tids.each { |tid| team_ids.push(tid.gsub('/', '')) }
+          else
+            team_ids = [self.team_id]
           end
-          UI.verbose("Successfully downloaded secrets from Vault to #{self.working_directory}")
+
+          # List the secrets using the HashiCorp Vault client
+          secrets = []
+
+          team_ids.each do |tid|
+            prefix = 'match/' + tid
+            ['certs', 'profiles'].each do |t|
+              types = []
+              if self.type.nil? || self.type.empty?
+                typs = self.vault_client.logical.list(prefix + '/' + t)
+                typs.each { |typ| types.push(typ.gsub('/', '')) }
+              else
+                types = [self.type]
+              end
+
+              types.each do |tp|
+                path = prefix + '/' + t + '/' + tp
+                result = self.vault_client.logical.list(path)
+                result.each { |r| secrets.push(path + '/' + r) }
+              end
+            end
+          end
+
+          # Get the secrets and write them out
+          secrets.each do |secret|
+            UI.verbose("Downloading secret from HashiCorp Vault '#{secret}'")
+            result = self.vault_client.logical.read(secret)
+            split = secret.split('/')
+            filename = split[split.length - 1]
+            path = self.working_directory + '/' + secret.gsub('/' + filename, '').gsub('match/', '')
+            unless File.directory?(path)
+              FileUtils.mkdir_p(path)
+            end
+            File.write(path + '/' + filename, Base64.decode64(result.data[:data][:contents]))
+          end
+        rescue => ex
+          UI.error(ex)
+          UI.user_error!("Unable to get secrets from vault and write to file.")
         end
+        UI.verbose("Successfully downloaded secrets from Vault to #{self.working_directory}")
       end
 
       def delete_files(files_to_delete: [], custom_message: nil)
-        puts("delete_files")
-        puts(caller)
-        # files_to_delete.each do |current_file|
-        #  target_path = current_file.gsub(self.working_directory + "/", "")
-        #  file = bucket.file(target_path)
-        #  UI.message("Deleting '#{target_path}' from Google Cloud Storage bucket '#{self.bucket_name}'...")
-        #  file.delete
-        # end
+        files_to_delete.each do |current_file|
+          begin
+            vault_entry = current_file.gsub(self.working_directory, "match")
+            UI.message("Deleting '#{vault_entry}' from HashiCorp Vault...")
+            self.vault_client.logical.delete(vault_entry)
+          rescue => ex
+            UI.error(ex)
+            UI.user_error!("Unable to delete secret from vault.")
+          end
+        end
       end
 
       def human_readable_description
