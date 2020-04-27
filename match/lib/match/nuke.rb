@@ -41,7 +41,8 @@ module Match
         s3_region: params[:s3_region].to_s,
         s3_access_key: params[:s3_access_key].to_s,
         s3_secret_access_key: params[:s3_secret_access_key].to_s,
-        s3_bucket: params[:s3_bucket].to_s
+        s3_bucket: params[:s3_bucket].to_s,
+        vault_addr: params[:vault_addr].to_s
       })
       self.storage.download
 

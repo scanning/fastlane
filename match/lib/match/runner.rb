@@ -50,6 +50,7 @@ module Match
         s3_access_key: params[:s3_access_key].to_s,
         s3_secret_access_key: params[:s3_secret_access_key].to_s,
         s3_bucket: params[:s3_bucket].to_s,
+        vault_addr: params[:vault_addr].to_s,
         readonly: params[:readonly],
         username: params[:readonly] ? nil : params[:username], # only pass username if not readonly
         team_id: params[:team_id],

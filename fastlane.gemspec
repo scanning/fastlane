@@ -113,6 +113,8 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency('aws-sdk-s3', '~> 1.0') # Used for S3 storage in fastlane match
 
+  spec.add_dependency('vault', '~> 0.13.0') # Used for HashiCorp Vault in fastlane match
+
   # Development only
   spec.add_development_dependency('rake', '< 12')
   spec.add_development_dependency('rspec', '~> 3.5.0')

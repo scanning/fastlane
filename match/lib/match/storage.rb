@@ -2,6 +2,7 @@ require_relative 'storage/interface'
 require_relative 'storage/git_storage'
 require_relative 'storage/google_cloud_storage'
 require_relative 'storage/s3_storage'
+require_relative 'storage/hashicorp_vault_storage'
 
 module Match
   module Storage
@@ -16,6 +17,9 @@ module Match
           },
           "s3" => lambda { |params|
             return Storage::S3Storage.configure(params)
+          },
+          "hashicorp_vault" => lambda { |params|
+            return Storage::HashiCorpVaultStorage.configure(params)
           }
         }
       end

@@ -177,6 +177,12 @@ module Match
                                      description: "Name of the S3 bucket",
                                      optional: true),
 
+        # Storage: HashiCorp Vault
+        FastlaneCore::ConfigItem.new(key: :vault_addr,
+                                      env_name: "MATCH_VAULT_ADDR",
+                                      description: "Address (URL) of the Vault Server",
+                                      optional: true),
+
         # Keychain
         FastlaneCore::ConfigItem.new(key: :keychain_name,
                                      short_option: "-s",
