@@ -118,9 +118,17 @@ module Pilot
 
       # Get latest uploaded build if no build specified
       if build.nil?
-        UI.important("No build specified - fetching latest build")
+        app_version = config[:app_version]
+        build_number = config[:build_number]
+        if build_number.nil?
+          if app_version.nil?
+            UI.important("No build specified - fetching latest build")
+          else
+            UI.important("No build specified - fetching latest build for version #{app_version}")
+          end
+        end
         platform = Spaceship::ConnectAPI::Platform.map(fetch_app_platform)
-        build ||= Spaceship::ConnectAPI::Build.all(app_id: app.id, sort: "-uploadedDate", platform: platform, limit: 1).first
+        build ||= Spaceship::ConnectAPI::Build.all(app_id: app.id, version: app_version, build_number: build_number, sort: "-uploadedDate", platform: platform, limit: 1).first
       end
 
       # Verify the build has all the includes that we need
@@ -207,8 +215,11 @@ module Pilot
     end
 
     def update_beta_app_meta(options, build)
-      # Setting account required wth AppStore Connect API
-      update_review_detail(build, { demo_account_required: options[:demo_account_required] })
+      # If demo_account_required is a parameter, it should added into beta_app_review_info
+      unless options[:demo_account_required].nil?
+        options[:beta_app_review_info] = {} if options[:beta_app_review_info].nil?
+        options[:beta_app_review_info][:demo_account_required] = options[:demo_account_required]
+      end
 
       if should_update_beta_app_review_info(options)
         update_review_detail(build, options[:beta_app_review_info])
