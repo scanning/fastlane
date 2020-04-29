@@ -121,7 +121,7 @@ module Match
 
         begin
 
-          # Discover the team ids using the HashiCorp Vault client
+          # Discover the team ids by looking at root of 'match' if not set
           team_ids = []
           if self.team_id.nil? || self.team_id.empty?
             tids = self.vault_client.logical.list('match')
@@ -141,7 +141,11 @@ module Match
                 typs = self.vault_client.logical.list(prefix + '/' + t)
                 typs.each { |typ| types.push(typ.gsub('/', '')) }
               else
-                types = [self.type]
+                if self.type == 'appstore' && t == 'certs'
+                  types = ['distribution']
+                else
+                  types = [self.type]
+                end
               end
 
               types.each do |tp|
@@ -193,14 +197,15 @@ module Match
         # Those doesn't mean they're new, it might just be they're changed
         # Either way, we'll upload them using the same technique
         files_to_upload.each do |current_file|
-          target_path = current_file.gsub(self.working_directory, "")
+          vault_entry = 'match' + current_file.gsub(self.working_directory, "")
 
-          next unless target_path.start_with?('/')
+          next unless vault_entry.start_with?('match/')
           begin
             # Extract the contents from the file and base64 encode
             file_contents = Base64.encode64(File.read(current_file))
             # Create the secret using the HashiCorp Vault client
-            self.vault_client.logical.write('match' + target_path, data: { contents: file_contents })
+            self.vault_client.logical.delete(vault_entry)
+            self.vault_client.logical.write(vault_entry, data: { contents: file_contents })
           rescue => ex
             UI.error(ex)
             UI.user_error!("Unable to write file to vault.")
